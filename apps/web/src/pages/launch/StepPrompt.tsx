@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { CreateLaunchBody, slugify } from "@ship/shared";
 import type { CreateLaunchBody as Body } from "@ship/shared";
 import { appUrl } from "../../env.js";
 import { Monogram } from "../../components/Monogram.js";
 import { StatusBadge } from "../../components/StatusBadge.js";
+import { isHttpError, uploadCoinImage } from "../../api/client.js";
 
 interface Props {
   initial: Partial<Body>;
@@ -37,6 +38,15 @@ const EXAMPLES: Array<{ title: string; blurb: string; prompt: string }> = [
   },
 ];
 
+const UPLOAD_ERRORS: Record<string, string> = {
+  image_too_large: "Image must be under 5 MB.",
+  unsupported_image_type: "Use a PNG, JPG, WEBP or GIF.",
+  not_an_image: "That file isn't a valid image.",
+  uploads_unavailable: "Uploads are temporarily unavailable — paste a URL instead.",
+  unauthorized: "Sign in to upload an image.",
+  invalid_token: "Sign in to upload an image.",
+};
+
 export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) => {
   const [name, setName] = useState(initial.name ?? "");
   const [ticker, setTicker] = useState(initial.ticker ?? "");
@@ -47,6 +57,30 @@ export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) =>
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [imageFailed, setImageFailed] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onPickFile = async (file: File | undefined): Promise<void> => {
+    if (!file) return;
+    setUploadErr(null);
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadErr("Image must be under 5 MB.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadCoinImage(file);
+      setImageUrl(url);
+      setImageFailed(null);
+      setTouched((t) => ({ ...t, imageUrl: true }));
+    } catch (e) {
+      setUploadErr((isHttpError(e) ? (UPLOAD_ERRORS[e.error] ?? e.error) : null) ?? "Upload failed — try again or paste a URL.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   const body = useMemo(
     () => ({
@@ -130,7 +164,7 @@ export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) =>
         </Group>
 
         <Group>
-          <Field label="Image URL" error={shownError("imageUrl")} hint="Square PNG or JPG. This becomes the coin image on pump.fun.">
+          <Field label="Coin image" error={shownError("imageUrl")} hint="Upload a square PNG, JPG, WEBP or GIF (max 5 MB), or paste a URL. This becomes the coin image on pump.fun.">
             <div className="flex items-stretch gap-2">
               <span className="grid size-11 shrink-0 place-items-center overflow-hidden border border-line-2 bg-bg-2">
                 {imageOk ? (
@@ -151,12 +185,29 @@ export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) =>
                 onChange={(e) => {
                   setImageUrl(e.target.value);
                   setImageFailed(null);
+                  setUploadErr(null);
                 }}
                 onBlur={() => setTouched((t) => ({ ...t, imageUrl: true }))}
                 placeholder="https://…/logo.png"
                 aria-invalid={!!shownError("imageUrl")}
               />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="sr-only"
+                onChange={(e) => void onPickFile(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                className="btn shrink-0"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? "uploading…" : "Upload"}
+              </button>
             </div>
+            {uploadErr !== null && <div className="mt-2 text-xs text-burn">{uploadErr}</div>}
             {imageFailed !== null && imageFailed === imageUrl.trim() && (
               <div className="mt-2 text-xs text-warn">
                 That URL did not load. The launch still works; the coin falls back to a ticker monogram.

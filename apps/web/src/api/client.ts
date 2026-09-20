@@ -92,6 +92,34 @@ export const api = {
   del: <T>(path: string) => request<T>("DELETE", path),
 };
 
+/** Uploads a coin image file to IPFS via the API (auth required); returns the pinned gateway URL. */
+export const uploadCoinImage = async (file: File): Promise<string> => {
+  const token = getSessionToken();
+  const headers: Record<string, string> = { accept: "application/json", "content-type": file.type };
+  if (token) headers.authorization = `Bearer ${token}`;
+  let res: Response;
+  try {
+    res = await fetch(`${env.apiOrigin}/v1/uploads/coin-image`, { method: "POST", headers, body: file });
+  } catch {
+    throw new HttpError(0, "network error — API unreachable");
+  }
+  const text = await res.text();
+  let json: unknown = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+  }
+  if (!res.ok) {
+    const msg = json && typeof json === "object" && "error" in json && typeof json.error === "string" ? json.error : null;
+    throw new HttpError(res.status, msg ?? FALLBACK_ERRORS[res.status] ?? `upload failed (${res.status})`, json);
+  }
+  if (json && typeof json === "object" && "url" in json && typeof json.url === "string") return json.url;
+  throw new HttpError(500, "bad_upload_response");
+};
+
 export const qs = (params: Record<string, string | number | boolean | null | undefined>): string => {
   const parts: string[] = [];
   for (const k in params) {
