@@ -395,6 +395,30 @@ export interface AuditPageEntry extends AuditEntry {
   actorWallet: string | null;
 }
 
+/**
+ * Operator credit dashboard: platform compute against the daily ceiling,
+ * credit-funding health, and per-app credit accounting. Every `*Usd` is dollars.
+ */
+export interface OpsCredits {
+  compute: { todayUsd: number; ceilingUsd: number };
+  /** Sum of every SENT CreditFunding, all time. */
+  fundedTotalUsd: number;
+  /** Sum of every open CREDITS ledger balance — earned, not yet deposited to the card. */
+  accruedTotalUsd: number;
+  apps: Array<{
+    slug: string;
+    ticker: string;
+    name: string;
+    spentUsd: number;
+    budgetUsd: number;
+    creditsAccruedUsd: number;
+    creditsFundedUsd: number;
+  }>;
+  /** Last 20 CreditFunding rows, newest first. */
+  recentFundings: Array<{ slug: string; ticker: string; usdcUsd: number; status: string; error: string | null; createdAt: string }>;
+  alerts: Array<{ level: "warn" | "error"; code: string; message: string }>;
+}
+
 export interface AdminOps {
   compute: { todayUsd: number; ceilingUsd: number; yesterdayUsd: number };
   running: AdminJob[];
@@ -409,6 +433,8 @@ export interface AdminOps {
   reconcile: ReconcileRun[];
   /** 25 most recent privileged actions, newest first. */
   audit: AuditEntry[];
+  /** Operator credit dashboard: compute vs ceiling, funding health, per-app accounting. */
+  credits: OpsCredits;
 }
 
 export interface ApiError {

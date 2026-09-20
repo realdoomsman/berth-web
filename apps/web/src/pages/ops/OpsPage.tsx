@@ -8,6 +8,8 @@ import { Modal } from "../../components/Modal.js";
 import { Money } from "../../components/Money.js";
 import { ProgressBar } from "../../components/ProgressBar.js";
 import { Section } from "../../components/Section.js";
+import { Stat, StatRow } from "../../components/Stat.js";
+import { BADGE } from "../../components/StatusBadge.js";
 import { Skeleton } from "../../components/Skeleton.js";
 import { useToast } from "../../components/Toast.js";
 import { formatDate, formatDuration, timeAgo } from "../../lib/format.js";
@@ -27,6 +29,14 @@ const CELL = "px-2 py-1 align-top";
 /* No `font-semibold`: Silkscreen ships 400/700 only, so a 600 request is
    synthesised by smearing the bitmap. */
 const HEAD = "label px-2 py-1";
+
+/** CreditFunding status colours: money-in when SENT, money-out on failure, warn/agent while mid-flight. */
+const FUNDING_CLS: Record<string, string> = {
+  SENT: "border-rev/40 text-rev",
+  FAILED: "border-burn/40 text-burn",
+  PENDING: "border-warn/40 text-warn",
+  SWAPPED: "border-violet/40 text-violet",
+};
 
 export const OpsPage = () => {
   const auth = useAuth();
@@ -116,6 +126,9 @@ export const OpsPage = () => {
   const severity = (r: ReconcileRun) => (!r.ok || r.drifted > r.repaired ? 0 : r.drifted > 0 ? 1 : 2);
   const reconcile = [...d.reconcile].sort((a, b) => severity(a) - severity(b) || a.kind.localeCompare(b.kind));
   const unrepaired = reconcile.filter((r) => !r.ok || r.drifted > r.repaired);
+  const credits = d.credits;
+  const creditPct = Math.min(100, (credits.compute.todayUsd / Math.max(credits.compute.ceilingUsd, 1)) * 100);
+  const creditHot = creditPct >= 80;
 
   return (
     <div className="flex flex-col gap-8 font-mono">
@@ -181,6 +194,127 @@ export const OpsPage = () => {
           </Kv>
         </dl>
       </section>
+
+      <Section
+        title="Credits"
+        sub="Platform compute against the ceiling, credit-funding health, and per-app credit accounting."
+        right={
+          credits.alerts.length > 0 ? (
+            <span className="num text-xs text-warn" role="status">
+              {credits.alerts.length} alert{credits.alerts.length === 1 ? "" : "s"}
+            </span>
+          ) : undefined
+        }
+      >
+        {credits.alerts.length > 0 && (
+          <ul className="mb-4 flex flex-col gap-1.5">
+            {credits.alerts.map((a) => (
+              <li
+                key={a.code}
+                className={`border-l-2 py-1 pl-3 text-xs ${a.level === "error" ? "border-burn text-burn" : "border-warn text-warn"}`}
+                {...(a.level === "error" ? { role: "alert" as const } : {})}
+              >
+                <span className="num mr-2 tracking-wide uppercase">{a.code}</span>
+                {a.message}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <ProgressBar
+          value={credits.compute.todayUsd}
+          max={Math.max(credits.compute.ceilingUsd, 1)}
+          tone={creditHot ? "warn" : "rev"}
+          size="md"
+          label={
+            <>
+              <span>daily compute</span>
+              <span className="num text-fg-2">
+                <Money usd={credits.compute.todayUsd} exact /> of <Money usd={credits.compute.ceilingUsd} exact /> daily compute
+              </span>
+            </>
+          }
+        />
+
+        <StatRow cols={3} className="mt-4">
+          <Stat label="funded to card" value={<Money usd={credits.fundedTotalUsd} tone="rev" />} tone="rev" />
+          <Stat label="accrued, awaiting deposit" value={<Money usd={credits.accruedTotalUsd} />} />
+          <Stat label="compute ceiling" value={<Money usd={credits.compute.ceilingUsd} exact />} />
+        </StatRow>
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-2">
+          <div>
+            <h3 className="h3 mb-3 border-b border-line pb-2">Per-app credits</h3>
+            {credits.apps.length === 0 ? (
+              <EmptyState compact title="No credit activity" body="Coins with build spend or accrued credits appear here." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-xs">
+                  <thead>
+                    <tr className="text-left">
+                      <th className={HEAD}>coin</th>
+                      <th className={`${HEAD} text-right`}>spent</th>
+                      <th className={`${HEAD} text-right`}>budget</th>
+                      <th className={`${HEAD} text-right`}>accrued</th>
+                      <th className={`${HEAD} text-right`}>funded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {credits.apps.map((a) => (
+                      <tr key={a.slug} className="border-t border-line">
+                        <td className={`${CELL} num`}>
+                          <Link to={`/c/${a.slug}`} className="font-semibold hover:underline">
+                            ${a.ticker}
+                          </Link>
+                          <span className="ml-1 text-fg-3">{a.name}</span>
+                        </td>
+                        <td className={`${CELL} text-right`}>
+                          <Money usd={a.spentUsd} tone="burn" />
+                        </td>
+                        <td className={`${CELL} text-right`}>
+                          <Money usd={a.budgetUsd} />
+                        </td>
+                        <td className={`${CELL} text-right`}>
+                          <Money usd={a.creditsAccruedUsd} />
+                        </td>
+                        <td className={`${CELL} text-right`}>
+                          <Money usd={a.creditsFundedUsd} tone="rev" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3 className="h3 mb-3 border-b border-line pb-2">Recent fundings</h3>
+            {credits.recentFundings.length === 0 ? (
+              <EmptyState compact title="No fundings yet" body="Credit deposits to app cards land here as they settle." />
+            ) : (
+              <ul className="text-xs">
+                {credits.recentFundings.map((f, i) => (
+                  <li
+                    key={`${f.slug}-${f.createdAt}-${i}`}
+                    className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line py-2"
+                  >
+                    <Link to={`/c/${f.slug}`} className="num font-semibold hover:underline">
+                      ${f.ticker}
+                    </Link>
+                    <Money usd={f.usdcUsd} className="text-fg-2" exact />
+                    <span className={`${BADGE} px-1.5 py-1 ${FUNDING_CLS[f.status] ?? "border-line text-fg-3"}`}>{f.status}</span>
+                    <span className="num ml-auto text-fg-3" title={formatDate(f.createdAt)}>
+                      {timeAgo(f.createdAt)}
+                    </span>
+                    {f.error && <div className="w-full text-burn">{f.error}</div>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </Section>
 
       <Section
         title="Reconcile"
