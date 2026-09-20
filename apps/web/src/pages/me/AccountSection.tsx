@@ -54,8 +54,11 @@ export const AccountSection = ({ me }: { me: Me | undefined }) => {
   const claimable = me?.claimableUsd ?? 0;
   const amountNum = Number(amount);
   const solPrice = stats.data?.solPriceUsd ?? 0;
+  const priced = asset === "USDC" || solPrice > 0;
   const usdValue = asset === "SOL" ? amountNum * solPrice : amountNum;
   const canWithdraw = to.trim().length >= 32 && amountNum > 0 && !withdraw.isPending;
+  // Confirm large moves. If SOL price hasn't loaded we can't size it in USD, so confirm to be safe.
+  const needsConfirm = !priced || usdValue >= CONFIRM_USD;
 
   const resetConfirm = () => setConfirming(false);
 
@@ -86,7 +89,7 @@ export const AccountSection = ({ me }: { me: Me | undefined }) => {
   const onWithdraw = () => {
     if (!canWithdraw) return;
     // Gate a large move behind a confirm step: over $1000 (amount × SOL price, or USDC face) asks first.
-    if (usdValue >= CONFIRM_USD && !confirming) {
+    if (needsConfirm && !confirming) {
       setConfirming(true);
       return;
     }
@@ -208,8 +211,8 @@ export const AccountSection = ({ me }: { me: Me | undefined }) => {
                 You're about to withdraw{" "}
                 <span className="num text-fg">
                   {amountNum} {asset}
-                </span>{" "}
-                (≈ ${usdValue.toLocaleString("en-US", { maximumFractionDigits: 2 })}) to{" "}
+                </span>
+                {priced && usdValue > 0 ? ` (≈ $${usdValue.toLocaleString("en-US", { maximumFractionDigits: 2 })})` : ""} to{" "}
                 <span className="num break-all text-fg-2">{to.trim()}</span>. This can't be undone.
               </p>
               <div className="flex flex-wrap gap-2">

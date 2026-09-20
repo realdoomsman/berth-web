@@ -68,8 +68,11 @@ export const Status = () => {
               <Stat label="fees paid" value={<Money usd={stats.data.feesUsd} />} />
             </StatRow>
             <StatRow cols={3}>
-              <Stat label="avg uptime" value={formatPct(stats.data.uptimeAvgBps)} />
-              <Stat label="first-deploy success" value={formatPct(stats.data.firstDeploySuccessRate * 10_000)} />
+              <Stat label="avg uptime" value={stats.data.appsTotal > 0 ? formatPct(stats.data.uptimeAvgBps) : "—"} />
+              <Stat
+                label="first-deploy success"
+                value={stats.data.appsTotal > 0 ? formatPct(stats.data.firstDeploySuccessRate * 10_000) : "—"}
+              />
               <Stat label="apps killed" value={formatNum(stats.data.appsKilled)} tone="warn" />
             </StatRow>
           </div>
