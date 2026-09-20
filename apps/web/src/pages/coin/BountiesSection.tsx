@@ -40,6 +40,15 @@ export const BountiesSection = ({ app }: { app: AppDetail }) => {
   const items = [...(q.data?.items ?? [])].sort((a, b) => ORDER[a.status] - ORDER[b.status] || (a.createdAt < b.createdAt ? 1 : -1));
   const escrowed = items.filter((b) => b.status === "OPEN" || b.status === "CLAIMED").reduce((n, b) => n + b.sol, 0);
 
+  // Opening the claim modal on a different bounty must not inherit the previous
+  // one's error or PR number, or a stale "PR #42 not found" reads as this claim's.
+  const openClaim = (b: BountyDto) => {
+    claim.reset();
+    setErr(null);
+    setPrNumber("");
+    setClaimFor(b);
+  };
+
   const submit = async () => {
     const pre = BountyBody.safeParse({ title: title.trim(), description: description.trim(), sol: Number(sol) });
     if (!pre.success) {
@@ -148,7 +157,7 @@ export const BountiesSection = ({ app }: { app: AppDetail }) => {
                   <button
                     type="button"
                     className="btn mt-1.5 px-2 py-0.5 text-xs"
-                    onClick={() => (auth.authenticated ? setClaimFor(b) : auth.login())}
+                    onClick={() => (auth.authenticated ? openClaim(b) : auth.login())}
                   >
                     Claim with PR
                   </button>

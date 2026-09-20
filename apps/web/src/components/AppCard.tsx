@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { AppSummary } from "../api/types.js";
+import { AppShot } from "./AppShot.js";
 import { Money } from "./Money.js";
 import { Monogram } from "./Monogram.js";
 import { Sparkline } from "./Sparkline.js";
@@ -36,6 +37,18 @@ export const AppCard = ({ app, revenueSeries, className = "" }: Props) => {
       className={`${building ? "panel-agent" : "panel"} panel-hover group flex flex-col gap-3 p-3.5 ${className}`}
       aria-label={`${app.name} $${app.ticker}`}
     >
+      {/* The website itself, full-bleed to the card edges: a card should look
+          like the product it ranks, not a wall of figures. */}
+      <AppShot
+        slug={app.slug}
+        name={app.name}
+        ticker={app.ticker}
+        liveVersion={app.liveVersion}
+        status={app.status}
+        aspect="16 / 7"
+        className="-mx-3.5 -mt-3.5 border-x-0 border-t-0"
+      />
+
       <div className="flex items-start gap-2.5">
         <Monogram ticker={app.ticker} src={app.imageUrl} size={40} />
         <div className="min-w-0 flex-1">

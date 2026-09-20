@@ -12,6 +12,24 @@ import { getTokenBalance } from "../../lib/solana.js";
 import { actionError } from "../../lib/errors.js";
 
 const BASE_UNITS = 10 ** PUMP_DECIMALS;
+const BASE_UNITS_BIG = 10n ** BigInt(PUMP_DECIMALS);
+
+/** Parse a decimal whole-token string to $BERTH base units, or null when malformed. */
+const toBaseUnits = (s: string): bigint | null => {
+  const t = s.trim();
+  if (t === "" || t === "." || !/^\d*\.?\d*$/.test(t)) return null;
+  const [whole, frac = ""] = t.split(".");
+  const fracPadded = frac.slice(0, PUMP_DECIMALS).padEnd(PUMP_DECIMALS, "0");
+  return BigInt(whole || "0") * BASE_UNITS_BIG + BigInt(fracPadded || "0");
+};
+
+/** Base units → the shortest exact whole-token decimal string (no float round-trip). */
+const fromBaseUnits = (v: bigint): string => {
+  const whole = v / BASE_UNITS_BIG;
+  const frac = v % BASE_UNITS_BIG;
+  if (frac === 0n) return whole.toString();
+  return `${whole}.${frac.toString().padStart(PUMP_DECIMALS, "0").replace(/0+$/, "")}`;
+};
 
 const LBL = "text-[13px] font-medium text-fg";
 
@@ -41,18 +59,17 @@ export const StakeForm = ({ ship }: { ship: ShipInfo }) => {
     refetchInterval: 60_000,
   });
 
-  const parsed = Number(amount);
-  const amountValid = Number.isFinite(parsed) && parsed > 0;
-  const amountBase = amountValid ? BigInt(Math.round(parsed * BASE_UNITS)) : 0n;
+  const amountBase = toBaseUnits(amount);
+  const amountValid = amountBase !== null && amountBase > 0n;
   const held = balance.data ?? 0n;
-  const overBalance = balance.isSuccess && amountBase > held;
+  const overBalance = balance.isSuccess && amountBase !== null && amountBase > held;
   const selected = apps.data?.items.find((a) => a.id === appId) ?? null;
   const canSend = ship.mint !== null && !!appId && amountValid && !overBalance && !stake.isPending;
 
   const submit = () => {
     if (!appId || !amountValid) return;
     stake.mutate(
-      { appId, amount: parsed },
+      { appId, amount: Number(amount) },
       {
         onSuccess: () => {
           setAmount("");
@@ -107,7 +124,7 @@ export const StakeForm = ({ ship }: { ship: ShipInfo }) => {
                   type="button"
                   className="btn px-3 text-xs"
                   disabled={held === 0n}
-                  onClick={() => setAmount(String(Number(held) / BASE_UNITS))}
+                  onClick={() => setAmount(fromBaseUnits(held))}
                 >
                   max
                 </button>

@@ -10,6 +10,7 @@ import {
 } from "@ship/shared";
 import type { AppSummary } from "../../api/types.js";
 import { Money } from "../../components/Money.js";
+import { IconBurn, IconDollar, IconRocket, IconSpark, IconTerminal } from "../../components/icons.js";
 import { formatPct } from "../../lib/format.js";
 
 const STAKE_SOL = LAUNCH_STAKE_LAMPORTS / 1_000_000_000;
@@ -81,6 +82,10 @@ const STEPS: Array<{ n: string; t: string; b: ReactNode }> = [
   },
 ];
 
+/* One drawn glyph per step, in step order: prompt, launch, fees, the agent at
+   work, the burn. Reuses the in-house 1-bit sprite set — no icon library. */
+const STEP_ICON = [IconTerminal, IconRocket, IconDollar, IconSpark, IconBurn] as const;
+
 /**
  * The loop. `dormant` is an optional real example of the out-of-budget state —
  * the mechanic is much easier to believe with a coin attached to it.
@@ -132,20 +137,26 @@ export const HowItWorks = ({ dormant }: { dormant: AppSummary | null }) => (
       </div>
 
       <ol className="divide-y divide-line border-t border-line">
-        {STEPS.map((s) => (
-          <li key={s.n} className="grid gap-x-6 gap-y-1 py-5 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:py-6">
-            <span className="num text-sm text-fg-3" aria-hidden>
-              {s.n}
-            </span>
-            <div className="min-w-0">
-              <h3 className="h3">
-                <span className="num sr-only">Step {s.n}. </span>
-                {s.t}
-              </h3>
-              <p className="small mt-1.5 max-w-2xl text-fg-2">{s.b}</p>
-            </div>
-          </li>
-        ))}
+        {STEPS.map((s, i) => {
+          const Glyph = STEP_ICON[i]!;
+          return (
+            <li key={s.n} className="grid gap-x-5 gap-y-2 py-5 sm:grid-cols-[3rem_minmax(0,1fr)] sm:py-6">
+              <div className="flex items-center gap-2.5 sm:flex-col sm:items-start sm:gap-2" aria-hidden>
+                <span className="flex size-9 shrink-0 items-center justify-center border border-line-2 bg-bg-2 text-fg-2 shadow-panel">
+                  <Glyph size={16} />
+                </span>
+                <span className="num text-xs text-fg-3">{s.n}</span>
+              </div>
+              <div className="min-w-0">
+                <h3 className="h3">
+                  <span className="num sr-only">Step {s.n}. </span>
+                  {s.t}
+                </h3>
+                <p className="small mt-1.5 max-w-2xl text-fg-2">{s.b}</p>
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </div>
   </section>

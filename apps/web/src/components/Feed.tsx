@@ -102,8 +102,13 @@ export const Feed = ({ slug, className = "", onEvent }: Props) => {
   onEventRef.current = onEvent;
   /** How many events the reader had seen when they last sat at the bottom. */
   const seen = useRef(0);
+  /** Ids already handed to `onEvent`, so a replayed SSE frame does not re-fire the callback. */
+  const fired = useRef<Record<string, true>>({});
 
-  useEffect(() => setLive([]), [slug]);
+  useEffect(() => {
+    setLive([]);
+    fired.current = {};
+  }, [slug]);
 
   const backfillItems = backfill.data?.items;
   const lastId = useMemo(() => {
@@ -113,6 +118,8 @@ export const Feed = ({ slug, className = "", onEvent }: Props) => {
 
   const onMessage = useCallback((e: BuildEvent) => {
     setLive((prev) => (prev.some((x) => x.id === e.id) ? prev : [...prev, e]));
+    if (fired.current[e.id]) return;
+    fired.current[e.id] = true;
     onEventRef.current?.(e);
   }, []);
 

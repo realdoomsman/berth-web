@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { LeaderboardSort, MIN_BUILD_BUDGET_USD } from "@ship/shared";
@@ -6,6 +6,7 @@ import { useApps } from "../../api/queries.js";
 import { useSse } from "../../api/sse.js";
 import { AppCard } from "../../components/AppCard.js";
 import { Skeleton } from "../../components/Skeleton.js";
+import { Reveal } from "../../components/Reveal.js";
 import { Tabs } from "../../components/Tabs.js";
 import { IconImage } from "../../components/icons.js";
 import { EmptyBoard } from "./EmptyBoard.js";
@@ -70,10 +71,19 @@ export const Leaderboard = () => {
   const top = useApps("revenue");
   const qc = useQueryClient();
 
-  // Global feed: any leaderboard-affecting change triggers a refetch (debounced by react-query's dedupe).
-  useSse<{ appId: string }>("/v1/apps/stream", {
-    onMessage: () => void qc.invalidateQueries({ queryKey: ["apps"] }),
-  });
+  // A single stream carries every leaderboard-affecting change on the platform,
+  // so a burst of events (a launch, a build, a buyback in the same second) would
+  // otherwise fire an ['apps'] invalidation each. Coalesce them into one refetch
+  // a beat after the burst settles.
+  const invalidateTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(invalidateTimer.current), []);
+  const scheduleInvalidate = useCallback(() => {
+    window.clearTimeout(invalidateTimer.current);
+    invalidateTimer.current = window.setTimeout(() => {
+      void qc.invalidateQueries({ queryKey: ["apps"] });
+    }, 1500);
+  }, [qc]);
+  useSse<{ appId: string }>("/v1/apps/stream", { onMessage: scheduleInvalidate });
 
   const apps = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
   const topApps = useMemo(() => top.data?.pages.flatMap((p) => p.items) ?? [], [top.data]);
@@ -211,13 +221,21 @@ export const Leaderboard = () => {
 
       {top.isPending ? <LatestActivitySkeleton /> : <LatestActivity apps={topApps} />}
 
-      <HowItWorks dormant={dormant} />
+      <Reveal>
+        <HowItWorks dormant={dormant} />
+      </Reveal>
 
-      <RoleSplit />
+      <Reveal>
+        <RoleSplit />
+      </Reveal>
 
-      <TemplateMoat />
+      <Reveal>
+        <TemplateMoat />
+      </Reveal>
 
-      <FaqSection />
+      <Reveal>
+        <FaqSection />
+      </Reveal>
 
       <div className="mt-20 flex flex-col gap-5 border-t border-line pt-8 sm:mt-28 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
         <p className="body max-w-2xl text-fg-2">

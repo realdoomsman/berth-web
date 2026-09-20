@@ -40,16 +40,23 @@ interface Props {
 export const ProgressBar = ({ value, max = 100, tone = "rev", size = "sm", className = "", label, ariaLabel }: Props) => {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   const [cell, gap] = CELL[size];
+  // A bar with a visible string label reuses it; an unnamed, purely visual bar
+  // is marked decorative rather than announced as a nameless "0%".
+  const named = ariaLabel ?? (typeof label === "string" ? label : undefined);
   return (
     <div className={className}>
       {label && <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-fg-2">{label}</div>}
       <div
         className={`relative ${HEIGHT[size]} w-full overflow-hidden border border-line bg-bg-3`}
-        role="progressbar"
-        aria-label={ariaLabel}
-        aria-valuenow={Math.round(pct)}
-        aria-valuemin={0}
-        aria-valuemax={100}
+        {...(named
+          ? {
+              role: "progressbar" as const,
+              "aria-label": named,
+              "aria-valuenow": Math.round(pct),
+              "aria-valuemin": 0,
+              "aria-valuemax": 100,
+            }
+          : { "aria-hidden": true })}
       >
         <div
           className={`absolute inset-y-0 left-0 transition-[width] duration-700 ease-out ${TONE[tone]}`}
