@@ -23,7 +23,17 @@ const Item = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 export const StatBand = () => {
-  const { data } = useStats();
+  const { data, isError } = useStats();
+
+  if (isError) {
+    return (
+      <div className="mt-10 flex items-center gap-3 border-y border-line bg-bg-1/40 px-3 py-2.5">
+        <StatusBlock tone="quiet" size={6} />
+        <span className="label">platform tape</span>
+        <span className="small text-fg-3">platform totals unavailable</span>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
@@ -73,7 +83,8 @@ export const StatBand = () => {
         </div>
         <p className="sr-only">
           Platform totals — app revenue {formatNum(data.revenueUsd)} dollars, {formatNum(burned)} $BERTH burned,{" "}
-          {formatNum(data.appsTotal)} apps built, {formatNum(data.appsLive)} live.
+          {formatNum(data.appsTotal)} apps built, {formatSol(data.feesSol)} creator fees, {formatSol(data.buybackSol)} spent on
+          buybacks, {formatNum(data.appsLive)} live.
         </p>
       </div>
     </div>

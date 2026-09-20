@@ -97,11 +97,16 @@ export const StepLaunching = ({ launch }: { launch: LaunchDto }) => {
         </div>
       ) : (
         <p className="mt-6 text-xs text-fg-2">
-          Under a minute, usually, and it keeps running if you close the tab.{" "}
-          <Link to={`/c/${launch.slug}`} className="underline">
-            Go to the coin page now
-          </Link>
-          .
+          Under a minute, usually, and it keeps running if you close the tab.
+          {launch.mint && (
+            <>
+              {" "}
+              <Link to={`/c/${launch.slug}`} className="underline">
+                Go to the coin page now
+              </Link>
+              .
+            </>
+          )}
         </p>
       )}
     </div>

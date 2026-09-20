@@ -42,9 +42,10 @@ const UPLOAD_ERRORS: Record<string, string> = {
   image_too_large: "Image must be under 5 MB.",
   unsupported_image_type: "Use a PNG, JPG, WEBP or GIF.",
   not_an_image: "That file isn't a valid image.",
-  uploads_unavailable: "Uploads are temporarily unavailable — paste a URL instead.",
   unauthorized: "Sign in to upload an image.",
   invalid_token: "Sign in to upload an image.",
+  session_revoked: "Your session expired — sign in again.",
+  banned: "This account cannot upload.",
 };
 
 export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) => {
@@ -195,7 +196,7 @@ export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) =>
                 ref={fileRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                className="sr-only"
+                className="hidden"
                 onChange={(e) => void onPickFile(e.target.files?.[0])}
               />
               <button
@@ -207,7 +208,7 @@ export const StepPrompt = ({ initial, forkOf, busy, error, onSubmit }: Props) =>
                 {uploading ? "uploading…" : "Upload"}
               </button>
             </div>
-            {uploadErr !== null && <div className="mt-2 text-xs text-burn">{uploadErr}</div>}
+            {uploadErr !== null && <div role="alert" className="mt-2 text-xs text-burn">{uploadErr}</div>}
             {imageFailed !== null && imageFailed === imageUrl.trim() && (
               <div className="mt-2 text-xs text-warn">
                 That URL did not load. The launch still works; the coin falls back to a ticker monogram.

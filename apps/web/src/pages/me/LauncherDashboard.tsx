@@ -40,8 +40,10 @@ const Stake = ({ app }: { app: Row }) => {
 
 const AppLink = ({ app }: { app: Row }) => {
   const resume = RESUMABLE[app.status] === true;
+  // Only minted coins have a live coin page; pre-mint/failed apps route back to the launch wizard.
+  const minted = app.status === "LIVE" || app.status === "DORMANT" || app.status === "KILLED";
   return (
-    <Link to={resume ? `/launch?id=${app.id}` : `/c/${app.slug}`} className="flex min-w-0 items-center gap-2.5 hover:text-rev">
+    <Link to={minted ? `/c/${app.slug}` : `/launch?id=${app.id}`} className="flex min-w-0 items-center gap-2.5 hover:text-rev">
       <Monogram ticker={app.ticker} src={app.imageUrl} size={28} />
       <span className="min-w-0">
         <span className="block truncate font-semibold">{app.name}</span>

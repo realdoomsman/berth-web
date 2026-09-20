@@ -92,7 +92,7 @@ export const api = {
   del: <T>(path: string) => request<T>("DELETE", path),
 };
 
-/** Uploads a coin image file to IPFS via the API (auth required); returns the pinned gateway URL. */
+/** Uploads a coin image to the API (auth required); returns the hosted `/v1/uploads/<id>` URL. */
 export const uploadCoinImage = async (file: File): Promise<string> => {
   const token = getSessionToken();
   const headers: Record<string, string> = { accept: "application/json", "content-type": file.type };
