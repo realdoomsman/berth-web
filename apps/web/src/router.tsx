@@ -18,6 +18,7 @@ const OpsPage = lazy(async () => ({ default: (await import("./pages/ops/OpsPage.
 const ShipPage = lazy(async () => ({ default: (await import("./pages/ship/ShipPage.js")).ShipPage }));
 const Governance = lazy(async () => ({ default: (await import("./pages/governance/Governance.js")).Governance }));
 const LegalPage = lazy(async () => ({ default: (await import("./pages/legal/LegalPage.js")).LegalPage }));
+const Status = lazy(async () => ({ default: (await import("./pages/status/Status.js")).Status }));
 const NotFound = lazy(async () => ({ default: (await import("./pages/NotFound.js")).NotFound }));
 const BoardCard = lazy(async () => ({ default: (await import("./pages/share/BoardCard.js")).BoardCard }));
 const CoinCard = lazy(async () => ({ default: (await import("./pages/share/CoinCard.js")).CoinCard }));
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       { path: "ops", element: page(<OpsPage />, "auth") },
       { path: "ship", element: page(<ShipPage />) },
       { path: "governance", element: page(<Governance />) },
+      { path: "status", element: page(<Status />, false) },
       { path: "legal", element: <Navigate to="/legal/terms" replace /> },
       { path: "legal/:doc", element: page(<LegalPage />) },
       { path: "*", element: page(<NotFound />, false) },

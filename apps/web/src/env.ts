@@ -6,6 +6,8 @@ export const env = {
   appDomain: (import.meta.env.VITE_APP_DOMAIN as string | undefined) ?? "",
   shipMint: (import.meta.env.VITE_SHIP_MINT as string | undefined) ?? "",
   solanaRpcUrl: (import.meta.env.VITE_SOLANA_RPC_URL as string | undefined) ?? "https://api.mainnet-beta.solana.com",
+  /** Circle USDC mint on Solana mainnet; the wallet's second fundable asset. */
+  usdcMint: (import.meta.env.VITE_USDC_MINT as string | undefined) ?? "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
 } as const;
 
 /** Public URL of a deployed app: wildcard subdomain when configured, path routing otherwise. */

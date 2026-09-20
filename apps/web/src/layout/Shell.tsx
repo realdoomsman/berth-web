@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, isRouteErrorResponse, useRouteError } from "react-router-dom";
 import type { ReactNode } from "react";
 import { WalletButton } from "../components/WalletButton.js";
+import { NotificationBell } from "./NotificationBell.js";
 import { ToastProvider } from "../components/Toast.js";
 import { IconBurn, IconChart, IconRefresh, IconRocket, IconUsers, IconVote, ShipMark } from "../components/icons.js";
 import { isHttpError } from "../api/client.js";
@@ -103,6 +104,7 @@ export const Shell = ({ error = false }: { error?: boolean }) => (
               <IconRocket size={14} />
               Launch
             </Link>
+            <NotificationBell />
             <WalletButton />
           </div>
         </div>
@@ -130,6 +132,11 @@ export const Shell = ({ error = false }: { error?: boolean }) => (
               <li>
                 <Link to="/ship" className="transition-colors hover:text-fg">
                   $BERTH staking
+                </Link>
+              </li>
+              <li>
+                <Link to="/status" className="transition-colors hover:text-fg">
+                  Status
                 </Link>
               </li>
             </ul>

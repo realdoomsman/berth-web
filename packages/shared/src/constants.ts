@@ -29,7 +29,7 @@ export const FORK_ROYALTY_BPS = 1000;
  */
 export const CREDITS_FUNDING_BPS = 5000;
 
-/** Minimum accrued, unfunded credits (USD) before a SOL→USDC→card deposit is worth its fees. The card provider's floor is $15. */
+/** Minimum accrued, unfunded credits (USD) before a SOL→USDC→card deposit is worth its fees. Zentro's floor is $15. */
 export const MIN_CREDITS_FUNDING_USD = 15;
 
 /** Merged human contributors earn this share of an app's launcher-equivalent fee stream, split among them. */
@@ -60,6 +60,12 @@ export const PROMPT_QUEUE_MIN_HOLD_BPS = 10; // hold ≥0.1% of supply to submit
 export const CONTRIBUTOR_MIN_HOLD_BPS = 200;
 /** Hold ≥3% of $BERTH to submit a platform-improvement proposal (the meta-governance gate). */
 export const PLATFORM_PROPOSAL_MIN_HOLD_BPS = 300;
+/** A proposal is "backed" once its capped $BERTH vote weight reaches this share of supply. */
+export const PLATFORM_PROPOSAL_QUORUM_BPS = 1000; // 10% of supply
+/** OPEN, sub-quorum proposals older than this are auto-declined to keep the board current. */
+export const PLATFORM_PROPOSAL_STALE_DAYS = 21;
+/** Per-user daily withdrawal cap (USD): blast-radius limit if a session is compromised. */
+export const WITHDRAW_DAILY_CAP_USD = 25_000;
 
 /** Buyback executor: minimum accumulated revenue before a swap is worth the fees. */
 export const MIN_BUYBACK_USD = 5;

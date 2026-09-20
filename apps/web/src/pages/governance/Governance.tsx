@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useProposals, useSetProposalStatus, useSubmitProposal, useUnvoteProposal, useVoteProposal } from "../../api/queries.js";
+import {
+  useAddComment,
+  useProposalComments,
+  useProposals,
+  useSetProposalStatus,
+  useSubmitProposal,
+  useUnvoteProposal,
+  useVoteProposal,
+} from "../../api/queries.js";
 import type { Proposal, ProposalStatus } from "../../api/types.js";
 import { isHttpError } from "../../api/client.js";
 import { useAuth } from "../../auth/useAuth.js";
@@ -10,9 +18,10 @@ import { Section } from "../../components/Section.js";
 import { Skeleton } from "../../components/Skeleton.js";
 import { BADGE, StatusBlock } from "../../components/StatusBadge.js";
 import type { StatusTone } from "../../components/StatusBadge.js";
+import { ProgressBar } from "../../components/ProgressBar.js";
 import { useToast } from "../../components/Toast.js";
-import { IconUsers, IconVote } from "../../components/icons.js";
-import { formatNum, shortAddr } from "../../lib/format.js";
+import { IconCheck, IconUsers, IconVote } from "../../components/icons.js";
+import { formatNum, shortAddr, timeAgo } from "../../lib/format.js";
 
 const STATUSES: ProposalStatus[] = ["OPEN", "PLANNED", "BUILDING", "SHIPPED", "DECLINED"];
 
@@ -52,7 +61,64 @@ const readHold = (body: unknown): { needBaseUnits: string; haveBaseUnits: string
     : null;
 };
 
-const ProposalCard = ({ p, isAdmin }: { p: Proposal; isAdmin: boolean }) => {
+/** Public discussion under a proposal: loads on expand, posts require auth (1–2000 chars). */
+const CommentThread = ({ proposalId }: { proposalId: string }) => {
+  const auth = useAuth();
+  const toast = useToast();
+  const q = useProposalComments(proposalId, true);
+  const add = useAddComment(proposalId);
+  const [text, setText] = useState("");
+
+  const onPost = () => {
+    const b = text.trim();
+    if (b.length < 1 || b.length > 2000) return;
+    add.mutate(b, {
+      onSuccess: () => setText(""),
+      onError: (e) => toast.error("Comment failed", e instanceof Error ? e.message : undefined),
+    });
+  };
+
+  return (
+    <div className="mt-3 border-l-2 border-line-2 pl-3">
+      {q.isPending && <Skeleton className="h-12 w-full" />}
+      {q.isError && <p className="small text-burn">{q.error.message}</p>}
+      {q.isSuccess && q.data.items.length === 0 && <p className="small text-fg-2">No comments yet — start the discussion.</p>}
+      {q.isSuccess && q.data.items.length > 0 && (
+        <ul className="flex flex-col gap-3">
+          {q.data.items.map((c) => (
+            <li key={c.id}>
+              <div className="small flex flex-wrap items-baseline gap-x-2 text-fg-2">
+                <span className="num text-fg">{authorName(c.author)}</span>
+                <span className="micro">{timeAgo(c.createdAt)}</span>
+              </div>
+              <p className="small mt-0.5 whitespace-pre-wrap break-words text-fg">{c.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex flex-col gap-2">
+        <textarea
+          className="input min-h-[64px]"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={2000}
+          placeholder={auth.authenticated ? "Add a comment…" : "Sign in to comment"}
+          disabled={!auth.authenticated || add.isPending}
+        />
+        <button
+          type="button"
+          className="btn btn-primary self-start"
+          disabled={add.isPending || (auth.authenticated && text.trim().length === 0)}
+          onClick={() => (auth.authenticated ? onPost() : auth.login())}
+        >
+          {add.isPending ? "Posting…" : auth.authenticated ? "Post comment" : "Sign in to comment"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ProposalCard = ({ p, isAdmin, quorumBaseUnits }: { p: Proposal; isAdmin: boolean; quorumBaseUnits: string }) => {
   const auth = useAuth();
   const toast = useToast();
   const vote = useVoteProposal();
@@ -61,6 +127,7 @@ const ProposalCard = ({ p, isAdmin }: { p: Proposal; isAdmin: boolean }) => {
   const [expanded, setExpanded] = useState(false);
   const [status, setStatusValue] = useState<ProposalStatus>(p.status);
   const [note, setNote] = useState("");
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const clamp = p.body.length > 280;
   const pending = vote.isPending || unvote.isPending;
@@ -97,6 +164,12 @@ const ProposalCard = ({ p, isAdmin }: { p: Proposal; isAdmin: boolean }) => {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">{p.title}</span>
             <StatusBadge status={p.status} />
+            {p.backed && (
+              <span className={`${BADGE} border-rev/40 bg-rev/5 px-2 py-[5px] text-rev`}>
+                <IconCheck size={9} />
+                backed
+              </span>
+            )}
           </div>
           <p className={`small mt-1 whitespace-pre-wrap text-fg-2 ${clamp && !expanded ? "line-clamp-3" : ""}`}>{p.body}</p>
           {clamp && (
@@ -117,6 +190,25 @@ const ProposalCard = ({ p, isAdmin }: { p: Proposal; isAdmin: boolean }) => {
               <span className="num text-rev">{tokens(p.weight)}</span> $BERTH
             </span>
           </div>
+          {Number(quorumBaseUnits) > 0 && (
+            <div className="mt-2.5 max-w-md">
+              <ProgressBar
+                value={Number(p.weight)}
+                max={Number(quorumBaseUnits)}
+                tone={p.backed ? "rev" : "info"}
+                size="xs"
+                ariaLabel="Vote weight toward quorum"
+                label={
+                  <>
+                    <span>quorum</span>
+                    <span className="num">
+                      {tokens(p.weight)} / {tokens(quorumBaseUnits)} $BERTH
+                    </span>
+                  </>
+                }
+              />
+            </div>
+          )}
           {p.ownerNote && (
             <p className="small mt-2 border-l-2 border-line-2 pl-2.5 text-fg-2">
               <span className="label mr-1.5">team</span>
@@ -137,6 +229,17 @@ const ProposalCard = ({ p, isAdmin }: { p: Proposal; isAdmin: boolean }) => {
             {p.mine ? "Voted — withdraw" : "Vote"}
           </button>
         </div>
+      </div>
+      <div className="mt-2">
+        <button
+          type="button"
+          className="small text-fg-2 underline decoration-line-2 underline-offset-2 hover:text-fg"
+          onClick={() => setCommentsOpen((v) => !v)}
+          aria-expanded={commentsOpen}
+        >
+          {commentsOpen ? "Hide discussion" : "Discussion"}
+        </button>
+        {commentsOpen && <CommentThread proposalId={p.id} />}
       </div>
 
       {isAdmin && (
@@ -291,6 +394,7 @@ export const Governance = () => {
 
   const shipLaunched = q.data?.shipLaunched ?? false;
   const minHold = q.data?.minHoldBaseUnits ?? "0";
+  const quorum = q.data?.quorumBaseUnits ?? "0";
 
   return (
     <div className="flex flex-col gap-8">
@@ -352,7 +456,7 @@ export const Governance = () => {
         {shipLaunched && items.length > 0 && (
           <ul>
             {items.map((p) => (
-              <ProposalCard key={p.id} p={p} isAdmin={isAdmin} />
+              <ProposalCard key={p.id} p={p} isAdmin={isAdmin} quorumBaseUnits={quorum} />
             ))}
           </ul>
         )}

@@ -11,16 +11,20 @@ import type {
   BuildEvent,
   Candle,
   CandleRes,
+  Health,
   HolderDashboard,
   LauncherDashboard,
   LaunchDto,
   LeaderboardSort,
   LedgerResponse,
   Me,
+  NotificationsResponse,
   Page,
   Proposal,
   ProposalStatus,
   ProposalsResponse,
+  ProposalComment,
+  ProposalCommentsResponse,
   PrsResponse,
   QueueItemDto,
   QueueResponse,
@@ -43,6 +47,7 @@ export const keys = {
   holders: (slug: string) => ["holders", slug] as const,
   ship: ["ship"] as const,
   proposals: ["proposals"] as const,
+  proposalComments: (id: string) => ["proposals", id, "comments"] as const,
   me: ["me"] as const,
   launcher: ["me", "launcher"] as const,
   holder: ["me", "holder"] as const,
@@ -50,6 +55,8 @@ export const keys = {
   adminOps: ["admin", "ops"] as const,
   adminJobs: (status: string) => ["admin", "jobs", status] as const,
   adminAudit: ["admin", "audit"] as const,
+  notifications: ["me", "notifications"] as const,
+  health: ["health"] as const,
 };
 
 export const useStats = () =>
@@ -361,3 +368,51 @@ export const useSetProposalStatus = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.proposals }),
   });
 };
+
+/* ─────────── notifications ─────────── */
+
+/** The signed-in user's recent notifications; polls while authed so the bell count stays live. */
+export const useNotifications = (authed: boolean) =>
+  useQuery({
+    queryKey: keys.notifications,
+    queryFn: ({ signal }) => api.get<NotificationsResponse>("/v1/me/notifications", signal),
+    enabled: authed,
+    refetchInterval: 30_000,
+  });
+
+/** Mark one notification read (`{ id }`) or all of them (`{}`); refreshes the bell. */
+export const useMarkNotificationsRead = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { id?: string }) => api.post<{ ok: boolean }>("/v1/me/notifications/read", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }),
+  });
+};
+
+/* ─────────── proposal comments ─────────── */
+
+export const useProposalComments = (id: string, enabled: boolean) =>
+  useQuery({
+    queryKey: keys.proposalComments(id),
+    queryFn: ({ signal }) => api.get<ProposalCommentsResponse>(`/v1/proposals/${id}/comments`, signal),
+    enabled,
+  });
+
+export const useAddComment = (id: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => api.post<ProposalComment>(`/v1/proposals/${id}/comments`, { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.proposalComments(id) }),
+  });
+};
+
+/* ─────────── status ─────────── */
+
+/** Public service liveness for the status page; retries are pointless here, a down check is the signal. */
+export const useHealth = () =>
+  useQuery({
+    queryKey: keys.health,
+    queryFn: ({ signal }) => api.get<Health>("/health", signal),
+    refetchInterval: 30_000,
+    retry: false,
+  });

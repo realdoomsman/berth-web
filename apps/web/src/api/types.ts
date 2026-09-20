@@ -441,6 +441,8 @@ export interface Proposal {
   weight: string;
   voters: number;
   mine: boolean;
+  /** item weight ≥ platform quorum */
+  backed: boolean;
   createdAt: string;
 }
 
@@ -448,5 +450,44 @@ export interface Proposal {
 export interface ProposalsResponse {
   shipLaunched: boolean;
   minHoldBaseUnits: string;
+  /** $BERTH base units (6 decimals) a proposal needs to clear quorum */
+  quorumBaseUnits: string;
   items: Proposal[];
+}
+
+/** One public comment on a governance proposal. */
+export interface ProposalComment {
+  id: string;
+  author: ProposalAuthor;
+  body: string;
+  createdAt: string;
+}
+
+/** `GET /v1/proposals/:id/comments` — public discussion thread. */
+export interface ProposalCommentsResponse {
+  items: ProposalComment[];
+}
+
+export type NotificationType = "BUILD_DONE" | "FEES_CLAIMABLE" | "PROPOSAL_STATUS" | "REWARDS_CLAIMABLE";
+
+/** One in-app notification for the signed-in user. */
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  href: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+/** `GET /v1/me/notifications` — recent items plus the unread count for the bell. */
+export interface NotificationsResponse {
+  items: Notification[];
+  unread: number;
+}
+
+/** `GET /health` — service liveness for the public status page. */
+export interface Health {
+  ok: boolean;
 }
