@@ -103,6 +103,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = useCallback(async () => {
+    // Revoke server-side (bumps tokenVersion) while the bearer is still stored; best-effort so a
+    // network blip still signs the user out locally.
+    await api.post("/v1/auth/logout").catch(() => undefined);
     clearSessionToken();
     setUser(null);
   }, []);
