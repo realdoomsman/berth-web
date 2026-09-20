@@ -63,7 +63,7 @@ export const MyStakes = ({ stakes, authed, launched }: Props) => {
             <button
               type="button"
               className="btn btn-primary shrink-0"
-              disabled={claimable === 0 || claim.isPending}
+              disabled={claimable < 1 || claim.isPending}
               onClick={onClaim}
             >
               {claim.isPending ? "claiming…" : "Claim rewards"}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ITERATION_BUDGET_USD, MIN_BUILD_BUDGET_USD } from "@ship/shared";
 import type { AppDetail } from "../../api/types.js";
 import { useStats, useTopup } from "../../api/queries.js";
@@ -38,6 +38,16 @@ export const TopupModal = ({ app, open, onClose }: Props) => {
     if (!valid) return;
     topup.mutate(solNum, { onSuccess: (r) => setDone(r) });
   };
+
+  // The modal stays mounted when closed, so wipe success + form state on close
+  // to avoid showing a stale "budget credited" screen on the next open.
+  useEffect(() => {
+    if (!open) {
+      setDone(null);
+      setSol("0.1");
+      topup.reset();
+    }
+  }, [open]);
 
   return (
     <Modal open={open} onClose={onClose} title={`Top up $${app.ticker} build budget`}>

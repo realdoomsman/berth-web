@@ -14,7 +14,7 @@ export const WalletButton = () => {
   const me = useMe(auth.authenticated);
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
-  const { success } = useToast();
+  const { success, error } = useToast();
 
   useEffect(() => {
     if (!open) return;
@@ -74,8 +74,16 @@ export const WalletButton = () => {
                 className={ITEM}
                 role="menuitem"
                 onClick={() => {
-                  void navigator.clipboard.writeText(auth.wallet!).then(() => success("Address copied"));
                   setOpen(false);
+                  const clip = navigator.clipboard;
+                  if (!clip?.writeText) {
+                    error("Copy failed", "Select and copy the address manually.");
+                    return;
+                  }
+                  void clip
+                    .writeText(auth.wallet!)
+                    .then(() => success("Address copied"))
+                    .catch(() => error("Copy failed", "Select and copy the address manually."));
                 }}
               >
                 <IconCopy size={14} className="text-fg-3" />

@@ -31,16 +31,22 @@ export const formatRatio = (r: number | null): string =>
 
 export const timeAgo = (iso: string | null | undefined): string => {
   if (!iso) return "—";
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  const s = Math.max(0, (Date.now() - t) / 1000);
   if (s < 60) return `${Math.floor(s)}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86_400) return `${Math.floor(s / 3600)}h ago`;
   if (s < 86_400 * 30) return `${Math.floor(s / 86_400)}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-export const formatDate = (iso: string | null | undefined): string =>
-  iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+export const formatDate = (iso: string | null | undefined): string => {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  return new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+};
 
 export const formatDuration = (ms: number): string => {
   const s = Math.floor(ms / 1000);

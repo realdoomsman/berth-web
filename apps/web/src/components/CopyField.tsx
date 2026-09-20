@@ -42,11 +42,16 @@ export const CopyField = ({ value, label, className = "", compact = false, wrap 
           }`}
           aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
           onClick={() => {
-            void navigator.clipboard.writeText(value).then(() => {
-              setCopied(true);
-              if (timer.current !== null) window.clearTimeout(timer.current);
-              timer.current = window.setTimeout(() => setCopied(false), 1500);
-            });
+            const clip = navigator.clipboard;
+            if (!clip?.writeText) return;
+            void clip
+              .writeText(value)
+              .then(() => {
+                setCopied(true);
+                if (timer.current !== null) window.clearTimeout(timer.current);
+                timer.current = window.setTimeout(() => setCopied(false), 1500);
+              })
+              .catch(() => {});
           }}
         >
           {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}

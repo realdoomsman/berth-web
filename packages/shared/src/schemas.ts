@@ -226,7 +226,7 @@ export const ShipStakeBody = z.object({
 export const WithdrawBody = z.object({
   asset: z.enum(["SOL", "USDC"]),
   to: z.string().min(32).max(64),
-  amount: z.number().positive(),
+  amount: z.number().positive().finite().max(1_000_000),
 });
 
 export const PromptQueueBody = z.object({

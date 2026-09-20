@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useReport } from "../../api/queries.js";
 import { useAuth } from "../../auth/useAuth.js";
 import { Modal } from "../../components/Modal.js";
@@ -18,6 +18,17 @@ export const ReportModal = ({ slug, open, onClose }: { slug: string; open: boole
   const [kind, setKind] = useState<Kind>("ABUSE");
   const [reporter, setReporter] = useState(auth.displayName ?? auth.wallet ?? "");
   const [details, setDetails] = useState("");
+
+  // The modal stays mounted when closed, so wipe success + form state on close
+  // to avoid showing a stale "report received" screen on the next open.
+  useEffect(() => {
+    if (!open) {
+      report.reset();
+      setKind("ABUSE");
+      setDetails("");
+      setReporter(auth.displayName ?? auth.wallet ?? "");
+    }
+  }, [open]);
 
   return (
     <Modal open={open} onClose={onClose} title="Report this app" width="sm">

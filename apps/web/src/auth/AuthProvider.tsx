@@ -48,7 +48,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const [autoWallet, setAutoWallet] = useState(false);
 
-  // Validate any stored session on first paint; a 401 means the token is stale.
+  // Validate any stored session on first paint. A 401 means the token is stale
+  // and must be cleared; any other failure is transient (5xx/network), so retry
+  // once and otherwise keep the token rather than signing the user out for the
+  // whole session.
   useEffect(() => {
     const token = getSessionToken();
     if (!token) {
@@ -56,17 +59,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     let cancelled = false;
-    api
-      .get<Me>("/v1/me")
-      .then((me) => {
-        if (!cancelled) setUser(me);
-      })
-      .catch((e) => {
-        if (!cancelled && isHttpError(e) && e.status === 401) clearSessionToken();
-      })
-      .finally(() => {
-        if (!cancelled) setReady(true);
-      });
+    const validate = async (): Promise<void> => {
+      for (let attempt = 0; attempt < 2 && !cancelled; attempt++) {
+        try {
+          const me = await api.get<Me>("/v1/me");
+          if (!cancelled) setUser(me);
+          return;
+        } catch (e) {
+          if (isHttpError(e) && e.status === 401) {
+            if (!cancelled) clearSessionToken();
+            return;
+          }
+          // Brief backoff, then retry once; ES2022 lib has no Promise.withResolvers.
+          if (attempt === 0) await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    };
+    void validate().finally(() => {
+      if (!cancelled) setReady(true);
+    });
     return () => {
       cancelled = true;
     };
