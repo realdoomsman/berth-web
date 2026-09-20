@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
-import { useShipUnstake } from "../../api/queries.js";
+import { useClaimStakerRewards, useShipUnstake } from "../../api/queries.js";
+import { isHttpError } from "../../api/client.js";
 import type { ShipStakeDto } from "../../api/types.js";
 import { EmptyState } from "../../components/EmptyState.js";
 import { Money } from "../../components/Money.js";
 import { Section } from "../../components/Section.js";
 import { TxLink } from "../../components/TxLink.js";
-import { formatNum, timeAgo } from "../../lib/format.js";
+import { useToast } from "../../components/Toast.js";
+import { formatNum, shortAddr, timeAgo } from "../../lib/format.js";
 
 interface Props {
   stakes: ShipStakeDto[];
@@ -16,10 +18,28 @@ interface Props {
 /** The caller's $BERTH deposits: earned fee share per stake, plus withdrawal. */
 export const MyStakes = ({ stakes, authed, launched }: Props) => {
   const unstake = useShipUnstake();
+  const claim = useClaimStakerRewards();
+  const toast = useToast();
   const active = stakes.filter((s) => s.withdrawnAt === null);
   const closed = stakes.filter((s) => s.withdrawnAt !== null);
   const totalActive = active.reduce((n, s) => n + s.amount, 0);
   const totalEarned = stakes.reduce((n, s) => n + s.earnedUsd, 0);
+  const claimable = active.reduce((n, s) => n + s.earnedUsd, 0);
+
+  const onClaim = () => {
+    claim.mutate(undefined, {
+      onSuccess: (d) => toast.success(`Claimed $${d.claimedUsd.toFixed(2)}`, `Paid to your wallet — ${shortAddr(d.payoutTx)}`),
+      onError: (e) => {
+        if (isHttpError(e) && e.error === "nothing_to_claim")
+          toast.error("Nothing to claim yet", "Rewards under $1 keep accruing until they clear the transaction fee.");
+        else if (isHttpError(e) && e.error === "claim_payout_failed")
+          toast.error("Payout failed", "Your rewards are safe — try again in a moment.");
+        else if (isHttpError(e) && e.error === "wallet_required")
+          toast.error("No wallet", "Your account needs a Solana wallet to receive rewards.");
+        else toast.error("Claim failed", e instanceof Error ? e.message : undefined);
+      },
+    });
+  };
 
   return (
     <Section
@@ -33,6 +53,29 @@ export const MyStakes = ({ stakes, authed, launched }: Props) => {
         ) : undefined
       }
     >
+      {authed && active.length > 0 && (
+        <div className="mb-4">
+          <div className="panel flex flex-wrap items-center justify-between gap-4 p-4">
+            <div className="min-w-0">
+              <span className="label">claimable rewards</span>
+              <span className="figure figure-lg mt-1 block text-rev">${claimable.toFixed(2)}</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary shrink-0"
+              disabled={claimable === 0 || claim.isPending}
+              onClick={onClaim}
+            >
+              {claim.isPending ? "claiming…" : "Claim rewards"}
+            </button>
+          </div>
+          {claim.isSuccess && (
+            <p className="small mt-3 text-rev">
+              Claimed ${claim.data.claimedUsd.toFixed(2)} — <TxLink sig={claim.data.payoutTx} label="view tx" />
+            </p>
+          )}
+        </div>
+      )}
       {!authed ? (
         <EmptyState compact title="Sign in to see your stakes" body="Stakes follow your account, not the browser." />
       ) : stakes.length === 0 ? (

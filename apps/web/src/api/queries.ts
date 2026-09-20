@@ -301,6 +301,17 @@ export const useShipUnstake = () => {
   });
 };
 
+export const useClaimStakerRewards = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ claimedUsd: number; lamports: number; payoutTx: string }>("/v1/ship/claim", {}),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.ship });
+      void qc.invalidateQueries({ queryKey: keys.me });
+    },
+  });
+};
+
 export const useReport = () =>
   useMutation({
     mutationFn: (p: { slug: string; reporter: string; kind: "ABUSE" | "DMCA" | "IMPERSONATION" | "OTHER"; details: string }) =>
