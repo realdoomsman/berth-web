@@ -1,0 +1,12 @@
+{
+  "name": "berth-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/shared", "apps/web"],
+  "scripts": {
+    "dev": "npm run dev -w @ship/web",
+    "build": "npm run build -w @ship/shared && npm run build -w @ship/web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}

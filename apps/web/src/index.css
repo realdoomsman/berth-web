@@ -1,0 +1,832 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";
+@import "@fontsource/silkscreen/400.css";
+@import "@fontsource/silkscreen/700.css";
+
+/*
+ * Berth visual language — "ledger", not "crypto dashboard".
+ *
+ * Deliberately restrained: ink-black page, paper-white type, and ONE accent
+ * that is spent almost entirely on money. Green is not decoration — it appears
+ * on revenue, fees and the primary action, nowhere else. Red belongs to burns.
+ * There are no glow gradients and no third brand colour, because a page that
+ * accents everything communicates nothing.
+ *
+ * Three surface layers only: page, base surfaces (`panel`), and the objects
+ * that matter (`panel-raised`). Data wells — tables, feeds, logs — are recessed
+ * (`panel-inset`) so they read as content you scan, not cards you click.
+ * Prefer a hairline rule over a new box.
+ *
+ * Numbers are always monospace and tabular so columns align and a changing
+ * digit does not reflow a row. Figures are negative-tracked and clamp-sized: a
+ * revenue number is allowed to anchor a whole layout.
+ */
+@theme {
+  --color-bg: #08090b;
+  --color-bg-1: #0d0f13;
+  --color-bg-2: #13161c;
+  --color-bg-3: #1b1f27;
+  --color-line: #1e232c;
+  --color-line-2: #2d3440;
+  --color-fg: #f3f5f7;
+  --color-fg-2: #9ba5b4;
+  /* Lifted from #626c7b (3.75:1, failed WCAG AA) so 11px labels are readable on every surface: 5.5:1 on bg, 5.0:1 on bg-2. */
+  --color-fg-3: #7c8798;
+  /* One accent, used sparingly. Deeper and less neon than a stock crypto green. */
+  --color-rev: #35d07f;
+  --color-rev-dim: #1a7f4e;
+  --color-burn: #f2564d;
+  --color-burn-dim: #98302b;
+  --color-warn: #e8a33d;
+  --color-info: #6ea8fe;
+  /* Agent activity is deliberately low-chroma: it is status, not money. */
+  --color-violet: #8b93a7;
+
+  /*
+   * Semantic roles. Components reference these, not the raw palette, so the
+   * meaning of a colour is fixed across the product:
+   *
+   *   --role-money-in   revenue, fees collected, budget funded, top-ups,
+   *                     bounty payouts, positive deltas, LIVE status
+   *   --role-money-out  burns, tokens destroyed, spend leaving the budget,
+   *                     negative deltas, killed/failed status
+   *   --role-agent      the AI agent working: running jobs, stages, tool
+   *                     calls, commits, deploys, PR review
+   *   --role-warn       needs a human: dormant, low budget, self-heal,
+   *                     launching, degraded uptime
+   *   --role-info       neutral external references: links, tx/explorer,
+   *                     GitHub, spec readiness
+   */
+  --role-money-in: var(--color-rev);
+  --role-money-out: var(--color-burn);
+  --role-agent: var(--color-violet);
+  --role-warn: var(--color-warn);
+  --role-info: var(--color-info);
+
+  /*
+   * Three voices, each with one job:
+   *   pixel — the machine. Wordmark, headings, labels, buttons, tabs.
+   *   sans  — prose you actually read.
+   *   mono  — every number, address, hash and command.
+   * Silkscreen is a bitmap face: it is only crisp at multiples of its design
+   * size, so the type scale below snaps to 8/12/16/24/32/44px rather than
+   * fluid clamps for pixel text.
+   */
+  --font-pixel: Silkscreen, "Courier New", monospace;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /*
+   * Nothing is rounded. Tailwind maps every `rounded-*` utility onto these
+   * tokens, so zeroing them squares the entire product from one place instead
+   * of editing every component. `rounded-full` going square is deliberate:
+   * status indicators are blocks, not dots.
+   */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+  --radius-full: 0px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /*
+   * Hard offset shadows, no blur. A blurred drop shadow is a soft-UI idiom and
+   * fights a pixel grid; an offset block reads as a stacked sprite.
+   */
+  --shadow-panel: 2px 2px 0 0 rgb(0 0 0 / 0.55);
+  --shadow-lift: 4px 4px 0 0 rgb(0 0 0 / 0.6);
+
+  --animate-pulse-dot: pulse-dot 1.6s steps(2, jump-none) infinite;
+  --animate-rise: rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.3s ease both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-ticker: ticker 34s linear infinite;
+  --animate-slide-in: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-beacon: beacon 2.4s ease-out infinite;
+  --animate-blink: blink 1.06s steps(1, end) infinite;
+
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 color-mix(in oklab, currentcolor 55%, transparent);
+    }
+    50% {
+      opacity: 0.65;
+      box-shadow: 0 0 0 4px color-mix(in oklab, currentcolor 0%, transparent);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translate3d(-6px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+  @keyframes blink {
+    0%,
+    50% {
+      opacity: 1;
+    }
+    50.01%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes beacon {
+    0% {
+      opacity: 0.7;
+      transform: scale(1);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(3.2);
+    }
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-optical-sizing: auto;
+    /* cv11: single-storey `a` (reads cleaner at label sizes). ss01: contextual
+       alternates. calt/kern on by default; tabular figures live on `num`. */
+    font-feature-settings:
+      "cv11" 1,
+      "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    /*
+     * No brand glows. Coloured radial washes behind a dark page are the single
+     * clearest signal of a template, and they fight the one accent we spend on
+     * money. What is left is a faint 1px grid and fine noise so large dark
+     * areas have surface without having a mood. Fixed attachment keeps the
+     * texture from crawling while scrolling.
+     */
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--color-line) 30%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--color-line) 30%, transparent) 1px, transparent 1px),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-size:
+      88px 88px,
+      88px 88px,
+      180px 180px;
+    background-attachment: fixed;
+    background-color: var(--color-bg);
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--role-money-in) 30%, transparent);
+  }
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  /* Focus is part of the design, not a browser artefact: a tight accent ring
+     plus a soft halo that reads on both panel and page backgrounds. */
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--role-money-in) 72%, transparent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--role-money-in) 12%, transparent);
+  }
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-2);
+    border-radius: 0;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-3);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/* ───────────────────────── type scale ─────────────────────────
+   Three voices. Pixel carries the machine (display, h1, h2); sans carries
+   prose (h3 downward); mono carries every number.
+
+   Silkscreen is a bitmap face, so pixel steps snap to whole pixels — 44/32/24
+   and 8/12 for labels — instead of fluid clamps, which would land the glyph
+   grid between device pixels and blur it. Pixel text is uppercase-leaning,
+   generously letter-spaced and never used for a paragraph: it is unreadable
+   past a line or two, which is exactly why it reads as a display face. */
+
+@utility display {
+  font-family: var(--font-pixel);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  text-wrap: balance;
+
+  @media (width >= 40rem) {
+    font-size: 2.75rem;
+  }
+}
+
+@utility h1 {
+  font-family: var(--font-pixel);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  line-height: 1.16;
+  text-wrap: balance;
+}
+
+@utility h2 {
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+/* h3 and below are sans: they sit close to prose and must stay readable. */
+@utility h3 {
+  font-size: 0.975rem;
+  font-weight: 620;
+  letter-spacing: -0.014em;
+  line-height: 1.35;
+}
+
+@utility body {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: -0.004em;
+  line-height: 1.58;
+}
+
+@utility small {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+@utility micro {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.012em;
+  line-height: 1.35;
+}
+
+/* Every number in the product: monospace, tabular, tight. */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "zero" 1;
+  letter-spacing: -0.01em;
+}
+
+/* Display figure. Size-free on purpose so `text-*` still composes; reach for
+   the clamp steps below when the number is meant to carry the layout. */
+@utility figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "zero" 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+@utility figure-md {
+  font-size: clamp(1.05rem, 0.95rem + 0.4vw, 1.25rem);
+}
+
+@utility figure-lg {
+  font-size: clamp(1.35rem, 1.05rem + 1.1vw, 1.8rem);
+  letter-spacing: -0.032em;
+}
+
+@utility figure-xl {
+  font-size: clamp(1.8rem, 1.25rem + 2.2vw, 2.6rem);
+  letter-spacing: -0.036em;
+}
+
+@utility figure-hero {
+  font-size: clamp(2.5rem, 1.5rem + 4.4vw, 4.25rem);
+  font-weight: 620;
+  letter-spacing: -0.042em;
+}
+
+/*
+ * Table headers and true data legends only. Pixel type at 8px is crisp and
+ * unmistakably a machine label; it is never used for anything a person reads
+ * in sentences.
+ */
+@utility label {
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-fg-3);
+}
+
+/* ───────────────────────── surfaces ─────────────────────────
+   Each of these is self-contained (fill + border + shadow), so they are used
+   *instead of* one another, never stacked. All flat fills: a vertical gradient
+   on a dark panel is the soft-UI idiom this theme rejects. All square: radius
+   is 0 everywhere, stated literally here so no utility drifts back. Depth is
+   a hard 2px offset block, never a blur. */
+
+/* Base surface: most panels on the page. */
+@utility panel {
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-line);
+  border-radius: 0;
+}
+
+/* The objects that matter: the primary asset, modals. Sits on its own shadow. */
+@utility panel-raised {
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-line-2);
+  border-radius: 0;
+  box-shadow: var(--shadow-panel);
+}
+
+/* Data wells: tables, feeds, logs, code. Darker than the page so content reads
+   as contained rather than presented. */
+@utility panel-inset {
+  background: color-mix(in oklab, var(--color-bg) 88%, black);
+  border: 1px solid var(--color-line);
+  border-radius: 0;
+}
+
+/* Money-positive surface: revenue arriving, budget funded, buyback settled.
+   The accent lives in the border and a 2px left rule, not in a glow. */
+@utility panel-money-in {
+  background: color-mix(in oklab, var(--role-money-in) 5%, var(--color-bg-1));
+  border: 1px solid color-mix(in oklab, var(--role-money-in) 34%, var(--color-line));
+  border-left: 2px solid var(--role-money-in);
+  border-radius: 0;
+}
+
+/* Money-negative surface: burns, kills, failures. */
+@utility panel-money-out {
+  background: color-mix(in oklab, var(--role-money-out) 5%, var(--color-bg-1));
+  border: 1px solid color-mix(in oklab, var(--role-money-out) 34%, var(--color-line));
+  border-left: 2px solid var(--role-money-out);
+  border-radius: 0;
+}
+
+/* Agent-at-work surface: a running build job. */
+@utility panel-agent {
+  background: color-mix(in oklab, var(--role-agent) 6%, var(--color-bg-1));
+  border: 1px solid color-mix(in oklab, var(--role-agent) 36%, var(--color-line));
+  border-left: 2px solid var(--role-agent);
+  border-radius: 0;
+}
+
+@utility hairline {
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* ───────────────────────── motion ───────────────────────── */
+
+/* Whole-surface hover: rises, brightens its edge, deepens its shadow. */
+@utility panel-hover {
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s var(--ease-out-expo),
+    box-shadow 0.22s ease;
+
+  &:hover {
+    border-color: var(--color-line-2);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
+  &:active {
+    transform: translateY(0);
+    transition-duration: 0.06s;
+  }
+}
+
+/* List/table row hover: a lit left rail and a lift of the row's own fill. */
+@utility row-hover {
+  position: relative;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.18s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 2px;
+    background: var(--role-money-in);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  &:hover {
+    background-color: color-mix(in oklab, var(--color-bg-2) 55%, transparent);
+    box-shadow: none;
+  }
+  &:hover::before {
+    opacity: 0.75;
+  }
+}
+
+/* Crossfade used when a skeleton is replaced by real content. */
+@utility fade-in {
+  animation: var(--animate-fade-in);
+}
+
+/* Vertical connector for timeline rows (feed, launch steps). Drawn on the
+   icon gutter so consecutive rows read as one continuous thread. */
+@utility rail {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0.72rem;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-line-2) 90%, transparent),
+      color-mix(in oklab, var(--color-line-2) 35%, transparent)
+    );
+  }
+}
+
+/* `rail`'s fade is calibrated to a short, fully visible step list. A scrolling
+   build feed is thousands of pixels tall, so the gradient bottoms out and the
+   thread disappears exactly where the reader is looking. `rail-even` keeps one
+   constant weight down the whole thread. */
+@utility rail-even {
+  &::before {
+    background: color-mix(in oklab, var(--color-line-2) 85%, transparent);
+  }
+}
+
+/* ───────────────────────── controls ───────────────────────── */
+
+@utility input {
+  width: 100%;
+  /*
+   * An <input> carries a UA intrinsic width from its default `size` (~20
+   * characters). Grid and flex items are `min-width: auto`, so without this a
+   * field refuses to shrink below ~390px and pushes its whole column off a
+   * 390px screen — which is exactly how /launch overflowed on mobile.
+   */
+  min-width: 0;
+  border: 1px solid var(--color-line-2);
+  border-radius: 0;
+  padding: 0.55rem 0.7rem;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+
+  &::placeholder {
+    color: var(--color-fg-3);
+  }
+  /* Focus is a hard 2px accent ring on the pixel grid, not a soft halo. */
+  &:focus {
+    border-color: var(--role-money-in);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--role-money-in) 30%, transparent);
+    outline: none;
+  }
+  &:disabled {
+    opacity: 0.55;
+  }
+}
+
+/*
+ * Pixel control: flat fill, hard 1px border, hard 2px offset shadow. Pressing
+ * moves the face onto its own shadow (translate 2px, shadow to 0) so the
+ * button physically seats instead of fading — the tactility comes from
+ * geometry, not from a blur.
+ */
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-line-2);
+  border-radius: 0;
+  padding: 0.45rem 0.85rem;
+  font-family: var(--font-pixel);
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 0 rgb(0 0 0 / 0.5);
+  transition:
+    background 0.12s steps(3, end),
+    border-color 0.12s ease,
+    transform 0.06s steps(1, end),
+    box-shadow 0.06s steps(1, end),
+    opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--color-bg-3);
+    border-color: var(--color-fg-3);
+  }
+  &:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+@utility btn-primary {
+  background: var(--role-money-in);
+  border-color: color-mix(in oklab, var(--role-money-in) 60%, black);
+  color: #04120a;
+  box-shadow: 2px 2px 0 0 color-mix(in oklab, var(--role-money-in) 30%, black);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--role-money-in) 88%, white);
+    border-color: color-mix(in oklab, var(--role-money-in) 60%, black);
+  }
+  &:active:not(:disabled) {
+    box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
+  }
+}
+
+@utility btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    background: var(--color-bg-2);
+    border-color: var(--color-line);
+  }
+}
+
+@utility btn-danger {
+  background: color-mix(in oklab, var(--role-money-out) 18%, var(--color-bg-2));
+  border-color: color-mix(in oklab, var(--role-money-out) 45%, var(--color-line-2));
+  color: var(--role-money-out);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--role-money-out) 26%, var(--color-bg-2));
+  }
+}
+
+@utility btn-lg {
+  padding: 0.7rem 1.2rem;
+  border-radius: 0;
+  font-size: 1rem;
+}
+
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-line);
+  border-radius: 0;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 550;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+/* Standalone tab: draws its own underline. `Tabs` uses `tab tab-slide`
+   instead, where a single indicator slides between the active items. */
+@utility tab {
+  position: relative;
+  padding: 0.5rem 0.1rem;
+  color: var(--color-fg-2);
+  font-weight: 550;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--color-fg);
+  }
+
+  &[data-active="true"] {
+    color: var(--color-fg);
+  }
+
+  &[data-active="true"]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--role-money-in);
+  }
+}
+
+@utility tab-slide {
+  &[data-active="true"]::after {
+    display: none;
+  }
+}
+
+/* Native disclosure styled as a quiet row: hairline, chevron, hover. */
+@utility disclosure {
+  border-bottom: 1px solid var(--color-line);
+
+  & > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 0.25rem;
+    font-weight: 560;
+    cursor: pointer;
+    list-style: none;
+    transition: color 0.15s ease;
+  }
+  & > summary::-webkit-details-marker {
+    display: none;
+  }
+  & > summary::after {
+    content: "";
+    margin-inline-start: auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 1.5px solid var(--color-fg-3);
+    border-bottom: 1.5px solid var(--color-fg-3);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform 0.2s var(--ease-out-expo);
+  }
+  & > summary:hover {
+    color: var(--color-fg);
+  }
+  &[open] > summary::after {
+    transform: rotate(225deg) translateY(-2px);
+  }
+  &[open] > summary {
+    color: var(--color-fg);
+  }
+}
+
+/* Loading placeholder that does not look broken. */
+/*
+ * Loading reads as a machine waiting, not a silk shimmer: a dithered block with
+ * a hard edge. The 2px checkerboard is the same texture used for disabled and
+ * empty states, so "no data yet" looks like one idea across the product.
+ */
+@utility skeleton {
+  background-color: var(--color-bg-2);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      color-mix(in oklab, var(--color-bg-3) 90%, transparent) 0 2px,
+      transparent 2px 4px
+    );
+  border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  border-radius: 0;
+}
+
+@utility card-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+@utility prose-legal {
+  color: var(--color-fg-2);
+  line-height: 1.75;
+  max-width: 72ch;
+
+  & h1 {
+    color: var(--color-fg);
+    font-size: 1.7rem;
+    font-weight: 650;
+    margin: 0 0 1rem;
+  }
+  & h2 {
+    color: var(--color-fg);
+    font-size: 1.05rem;
+    font-weight: 620;
+    margin: 2rem 0 0.6rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--color-line);
+  }
+  & h3 {
+    color: var(--color-fg);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 1.3rem 0 0.4rem;
+  }
+  & p {
+    margin: 0 0 0.9rem;
+  }
+  & ul,
+  & ol {
+    margin: 0 0 1rem;
+    padding-left: 1.2rem;
+  }
+  & li {
+    margin: 0 0 0.35rem;
+  }
+  & strong {
+    color: var(--color-fg);
+    font-weight: 600;
+  }
+  & code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-line);
+    border-radius: 0;
+    padding: 0.05rem 0.3rem;
+  }
+  & a {
+    color: var(--role-money-in);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
